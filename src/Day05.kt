@@ -1,86 +1,58 @@
 fun main() {
-    fun getToMap(
-        destinationRangeStart: Int,
-        sourceRangeStart: Int,
-        rangeLength: Int
-    ) = (0..<rangeLength).associate { Pair(sourceRangeStart + it, destinationRangeStart + it) }
 
-    fun sourceToDestinationMap(triples: List<Triple<Int, Int, Int>>) = triples
-        .map { getToMap(it.first, it.second, it.third) }
-        .reduce { acc, map -> acc + map }
-        .toSortedMap()
-
-    fun List<Triple<Int, Int, Int>>.sourceToDestinationMap() = this.map { getToMap(it.first, it.second, it.third) }
-        .reduce { acc, map -> acc + map }
-        .toSortedMap()
-
-    fun part1(input: List<String>): Int {
-        val seeds = listOf(79, 14, 55, 13)
-        val seedToSoil = listOf(
-            Triple(50, 98, 2),
-            Triple(52, 50, 48)
-        )
-        val soilToFertilizer = listOf(
-            Triple(0, 15, 37),
-            Triple(37, 52, 2),
-            Triple(39, 0, 15),
-        )
-        val fertilizerToWater = listOf(
-            Triple(49, 53, 8),
-            Triple(0, 11, 42),
-            Triple(42, 0, 7),
-            Triple(57, 7, 4),
-        )
-        val waterToLight = listOf(
-            Triple(88, 18, 7),
-            Triple(18, 25, 70),
-        )
-        val lightToTemperature = listOf(
-            Triple(45, 77, 23),
-            Triple(81, 45, 19),
-            Triple(68, 64, 13),
-        )
-        val temperatureToHumidity = listOf(
-            Triple(0, 69, 1),
-            Triple(1, 0, 69),
-        )
-        val humidityToLocation = listOf(
-            Triple(60, 56, 37),
-            Triple(56, 93, 4),
-        )
-
-        val seedToSoilMap = sourceToDestinationMap(seedToSoil)
-        val soilToFertilizerMap = sourceToDestinationMap(soilToFertilizer)
-        val fertilizerToWaterMap = sourceToDestinationMap(fertilizerToWater)
-        val waterToLightMap = sourceToDestinationMap(waterToLight)
-        val lightToTemperatureMap = sourceToDestinationMap(lightToTemperature)
-        val temperatureToHumidityMap = sourceToDestinationMap(temperatureToHumidity)
-        val humidityToLocationMap = sourceToDestinationMap(humidityToLocation)
-
-
-
-        return seeds
-            .asSequence()
-            .map { seedToSoilMap.getOrDefault(it, it) }
-            .map { soilToFertilizerMap.getOrDefault(it, it) }
-            .map { fertilizerToWaterMap.getOrDefault(it, it) }
-            .map { waterToLightMap.getOrDefault(it, it) }
-            .map { lightToTemperatureMap.getOrDefault(it, it) }
-            .map { temperatureToHumidityMap.getOrDefault(it, it) }
-            .map { humidityToLocationMap.getOrDefault(it, it) }
-            .toList()
-            .min()
-    }
-
-
-    fun part2(input: List<String>): Int {
-        return 0
-    }
-
-    // test if implementation meets criteria from the description, like:
-    val testInput = readInput("Day05_test")
-    check(part1(testInput) == 35)
     val input = readInput("Day05")
-//    part1(input).println()
-//    part2(input).println()
+    val seeds = input[0]
+        .substringAfter(":")
+        .split(' ')
+        .filter { it.isNotBlank() }
+        .map { it.toLong() }
+
+
+    val maps = input.drop(2)
+        .fold(mutableListOf(mutableListOf<String>())) { acc, string ->
+            if (string.isBlank())
+                acc.add(mutableListOf())
+            else
+                acc.last().add(string)
+            acc
+        }.map {
+            val (from, _, to) = it.first().split('-', ' ')
+            val blocks = it.drop(1).map {
+                val (dst, src, length) = it.split(' ').map { it.toLong() }
+                Block(src, dst, length)
+            }
+            SeedsMap(from, to, blocks)
+        }
+
+    fun convert(cn: String, x: Long): Pair<String, Long>? {
+        val seedsMap = maps.find { it.from == cn } ?: return null
+
+        val block = seedsMap.blocks.find { x in it.src..<it.src + it.length }
+
+        if (block != null) {
+            return seedsMap.to to (x - block.src + block.dst)
+        } else {
+            return seedsMap.to to x
+        }
+    }
+
+    val result = seeds.minOfOrNull { seed ->
+        var cn = "seed"
+        var x = seed
+
+        while (true) {
+            val result = convert(cn, x) ?: break
+            cn = result.first
+            x = result.second
+        }
+        check(cn == "location")
+        x
+    }
+
+    println(result)
 }
+
+
+data class Block(val src: Long, val dst: Long, val length: Long)
+data class SeedsMap(val from: String, val to: String, val blocks: List<Block>)
+
